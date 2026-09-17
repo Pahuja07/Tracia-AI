@@ -5,17 +5,14 @@ from neo4j import GraphDatabase
 from src.criminalNetwork.entity.config_entity import GraphBuilderConfig
 from src.criminalNetwork.utils.logger import logger
 from src.criminalNetwork.utils.exception import CriminalNetworkException
-from src.criminalNetwork.utils.common import load_graph_schema
+from src.criminalNetwork.utils.common import load_graph_schema, normalize_neo4j_uri
 
 
 class GraphBuilder:
     def __init__(self, config: GraphBuilderConfig):
         self.config = config
-        uri = self.config.neo4j_uri
-        if self.config.trust_self_signed_certificate:
-            # Neo4j's +ssc schemes retain TLS encryption while accepting a
-            # self-signed server certificate (common with private instances).
-            uri = uri.replace("neo4j+s://", "neo4j+ssc://", 1).replace("bolt+s://", "bolt+ssc://", 1)
+        uri = normalize_neo4j_uri(self.config.neo4j_uri, self.config.trust_self_signed_certificate)
+        if self.config.trust_self_signed_certificate and ".neo4j.io" not in uri.lower():
             logger.warning("Neo4j self-signed certificate trust is enabled")
         self.driver = GraphDatabase.driver(
             uri,
@@ -48,8 +45,10 @@ class GraphBuilder:
 
     def _validate_entity_type(self, entity_type: str) -> str:
         """Schema ke against entity_type check karta hai — case-insensitive match, warna 'Unknown' fallback."""
+        normalised_input = "".join(char for char in str(entity_type).lower() if char.isalnum())
         for valid_type in self.entity_types:
-            if valid_type.lower() == str(entity_type).strip().lower():
+            normalised_valid = "".join(char for char in valid_type.lower() if char.isalnum())
+            if normalised_valid == normalised_input:
                 return valid_type
         logger.warning(f"Entity type '{entity_type}' not in schema — treating as 'Unknown'")
         return "Unknown"

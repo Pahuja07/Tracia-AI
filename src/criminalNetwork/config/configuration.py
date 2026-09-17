@@ -9,7 +9,9 @@ from src.criminalNetwork.entity.config_entity import (
     DataPreprocessingConfig,
     EntityExtractionConfig
     , CaseUploadConfig, CaseExtractionConfig, RelationshipExtractionConfig, EntityResolutionConfig,
-    GraphBuilderConfig, GraphAnalyticsConfig, EvidenceIntegrityConfig,RAGPipelineConfig,AgentConfig
+    GraphBuilderConfig, GraphAnalyticsConfig, EvidenceIntegrityConfig,RAGPipelineConfig,AgentConfig,
+    DocumentProcessingConfig, CaseUnderstandingConfig, DynamicSchemaConfig, EvidenceExtractionConfig, TabularModelConfig,
+    CrossCaseAnalysisConfig, FeatureEngineeringConfig, AssociationMiningConfig, StatisticalAnalysisConfig, LeadScoringConfig
 )
 
 from src.criminalNetwork.entity.config_entity import DataIngestionConfig, RelationshipExtractionConfig
@@ -18,13 +20,13 @@ from src.criminalNetwork.utils.common import read_yaml, create_directories
 
 import os
 from dotenv import load_dotenv
-from dotenv import load_dotenv 
-load_dotenv()
+
+load_dotenv(override=True)
 
 class ConfigurationManager:
     def __init__(self, config_filepath=CONFIG_FILE_PATH):
         self.project_root = Path(config_filepath).resolve().parent.parent
-        load_dotenv(self.project_root / ".env")
+        load_dotenv(self.project_root / ".env", override=True)
         self.config = read_yaml(config_filepath)
         create_directories(self._resolve_path(self.config["artifacts_root"]))
 
@@ -99,6 +101,22 @@ class ConfigurationManager:
             output_dir=output_dir,
             common_entities_path=self._resolve_path(case_cfg["common_entities_path"]),
         )
+    def get_document_processing_config(self) -> DocumentProcessingConfig:
+        cfg = self.config["document_processing"]; output_dir = self._resolve_path(cfg["output_dir"]); create_directories(output_dir)
+        return DocumentProcessingConfig(self._resolve_path(self.config["case_upload"]["manifest_path"]), output_dir, self._resolve_path(cfg["documents_path"]))
+    def get_case_understanding_config(self) -> CaseUnderstandingConfig:
+        cfg = self.config["case_understanding"]; output_dir = self._resolve_path(cfg["output_dir"]); create_directories(output_dir)
+        return CaseUnderstandingConfig(self._resolve_path(self.config["document_processing"]["documents_path"]), output_dir, self._resolve_path(cfg["profiles_path"]))
+    def get_dynamic_schema_config(self) -> DynamicSchemaConfig:
+        cfg = self.config["dynamic_schema"]; output_dir = self._resolve_path(cfg["output_dir"]); create_directories(output_dir)
+        return DynamicSchemaConfig(self._resolve_path(self.config["case_understanding"]["profiles_path"]), output_dir, self._resolve_path(cfg["schemas_path"]))
+    def get_evidence_extraction_config(self) -> EvidenceExtractionConfig:
+        cfg = self.config["evidence_extraction"]; output_dir = self._resolve_path(cfg["output_dir"]); create_directories(output_dir)
+        return EvidenceExtractionConfig(self._resolve_path(self.config["document_processing"]["documents_path"]), self._resolve_path(self.config["dynamic_schema"]["schemas_path"]), output_dir, self._resolve_path(cfg["entities_path"]), self._resolve_path(cfg["evidence_path"]))
+    def get_tabular_model_config(self) -> TabularModelConfig:
+        cfg = self.config["tabular_model"]; output_dir = self._resolve_path(cfg["output_dir"]); create_directories(output_dir)
+        evidence_cfg = self.config["evidence_extraction"]
+        return TabularModelConfig(self._resolve_path(self.config["document_processing"]["documents_path"]), self._resolve_path(self.config["case_understanding"]["profiles_path"]), self._resolve_path(evidence_cfg["entities_path"]), self._resolve_path(evidence_cfg["evidence_path"]), output_dir, self._resolve_path(cfg["cases_path"]), self._resolve_path(cfg["entities_path"]), self._resolve_path(cfg["evidence_path"]))
     def get_relationship_extraction_config(self) -> RelationshipExtractionConfig:
         cfg = self.config["relationship_extraction"]
         output_path = self._resolve_path(cfg["output_path"])
@@ -127,6 +145,8 @@ class ConfigurationManager:
         config = self.config["graph_builder"]
         root_dir = self._resolve_path(config["root_dir"])
         create_directories(root_dir)
+        raw_uri = os.getenv("NEO4J_URI", "")
+        raw_flag = os.getenv("NEO4J_TRUST_SELF_SIGNED_CERTIFICATE", "false")
         return GraphBuilderConfig(
             root_dir=root_dir,
             entity_mapping_file=self._resolve_path(config["entity_mapping_file"]),
@@ -134,28 +154,46 @@ class ConfigurationManager:
             resolved_relationships_file=self._resolve_path(config["resolved_relationships_file"]),
             graph_build_log_file=self._resolve_path(config["graph_build_log_file"]),
             graph_schema_file=self._resolve_path(config["graph_schema_file"]),
-            neo4j_uri=os.environ["NEO4J_URI"],
+            neo4j_uri=raw_uri,
             neo4j_username=os.environ["NEO4J_USERNAME"],
             neo4j_password=os.environ["NEO4J_PASSWORD"],
             neo4j_database=os.getenv("NEO4J_DATABASE") or None,
-            trust_self_signed_certificate=os.getenv("NEO4J_TRUST_SELF_SIGNED_CERTIFICATE", "false").lower() == "true",
+            trust_self_signed_certificate=raw_flag.lower() == "true",
     )
     def get_graph_analytics_config(self) -> GraphAnalyticsConfig:
         config = self.config["graph_analytics"]
         root_dir = self._resolve_path(config["root_dir"])
         create_directories(root_dir)
+        raw_uri = os.getenv("NEO4J_URI", "")
+        raw_flag = os.getenv("NEO4J_TRUST_SELF_SIGNED_CERTIFICATE", "false")
         return GraphAnalyticsConfig(
             root_dir=root_dir,
             centrality_output_file=self._resolve_path(config["centrality_output_file"]),
             community_output_file=self._resolve_path(config["community_output_file"]),
             top_n_report_file=self._resolve_path(config["top_n_report_file"]),
             top_n=config["top_n"],
-            neo4j_uri=os.environ["NEO4J_URI"],
+            neo4j_uri=raw_uri,
             neo4j_username=os.environ["NEO4J_USERNAME"],
             neo4j_password=os.environ["NEO4J_PASSWORD"],
             neo4j_database=os.getenv("NEO4J_DATABASE") or None,
-            trust_self_signed_certificate=os.getenv("NEO4J_TRUST_SELF_SIGNED_CERTIFICATE", "false").lower() == "true",
+            trust_self_signed_certificate=raw_flag.lower() == "true",
     )
+
+    def get_cross_case_analysis_config(self) -> CrossCaseAnalysisConfig:
+        cfg = self.config["cross_case_analysis"]; path = self._resolve_path(cfg["output_file"]); create_directories(path.parent)
+        return CrossCaseAnalysisConfig(self._resolve_path(self.config["entity_resolution"]["resolved_entities_file"]), self._resolve_path(self.config["entity_resolution"]["resolved_relationships_file"]), path)
+    def get_feature_engineering_config(self) -> FeatureEngineeringConfig:
+        cfg = self.config["feature_engineering"]; path = self._resolve_path(cfg["output_file"]); create_directories(path.parent)
+        return FeatureEngineeringConfig(self._resolve_path(self.config["cross_case_analysis"]["output_file"]), self._resolve_path(self.config["entity_resolution"]["resolved_relationships_file"]), path, cfg["time_decay_days"], cfg["location_decay_km"])
+    def get_association_mining_config(self) -> AssociationMiningConfig:
+        cfg = self.config["association_mining"]; path = self._resolve_path(cfg["rules_output_file"]); create_directories(path.parent)
+        return AssociationMiningConfig(self._resolve_path(self.config["tabular_model"]["entities_path"]), self._resolve_path(self.config["entity_resolution"]["resolved_relationships_file"]), path, cfg["min_support"], cfg["min_confidence"], cfg["lift_cap"], self._resolve_path(cfg["role_output_file"]))
+    def get_statistical_analysis_config(self) -> StatisticalAnalysisConfig:
+        cfg = self.config["statistical_analysis"]; correlation = self._resolve_path(cfg["correlation_output_file"]); create_directories(correlation.parent)
+        return StatisticalAnalysisConfig(self._resolve_path(self.config["feature_engineering"]["output_file"]), correlation, self._resolve_path(cfg["bayesian_output_file"]))
+    def get_lead_scoring_config(self) -> LeadScoringConfig:
+        cfg = self.config["lead_scoring"]; path = self._resolve_path(cfg["output_file"]); create_directories(path.parent)
+        return LeadScoringConfig(self._resolve_path(self.config["feature_engineering"]["output_file"]), self._resolve_path(self.config["association_mining"]["rules_output_file"]), self._resolve_path(self.config["statistical_analysis"]["bayesian_output_file"]), path, cfg["weights"])
 
     def get_evidence_integrity_config(self) -> EvidenceIntegrityConfig:
         config = self.config["evidence_integrity"]
@@ -189,6 +227,8 @@ class ConfigurationManager:
     )
     def get_agent_config(self) -> AgentConfig:
         config = self.config["agent"]
+        raw_uri = os.getenv("NEO4J_URI", "")
+        raw_flag = os.getenv("NEO4J_TRUST_SELF_SIGNED_CERTIFICATE", "false")
         return AgentConfig(
             vector_store_dir=self._resolve_path(config["vector_store_dir"]),
             embedding_model_name=config["embedding_model_name"],
@@ -197,10 +237,10 @@ class ConfigurationManager:
             community_file=self._resolve_path(config["community_file"]),
             llm_model_name=config["llm_model_name"],
             retrieval_k=config["retrieval_k"],
-            neo4j_uri=os.environ["NEO4J_URI"],
+            neo4j_uri=raw_uri,
             neo4j_username=os.environ["NEO4J_USERNAME"],
             neo4j_password=os.environ["NEO4J_PASSWORD"],
-            trust_self_signed_certificate=os.getenv("NEO4J_TRUST_SELF_SIGNED_CERTIFICATE", "false").lower() == "true",
+            trust_self_signed_certificate=raw_flag.lower() == "true",
             openai_api_key=os.environ["OPENAI_API_KEY"],
     )
 

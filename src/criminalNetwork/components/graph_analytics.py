@@ -7,14 +7,14 @@ import community as community_louvain  # python-louvain package
 from src.criminalNetwork.entity.config_entity import GraphAnalyticsConfig
 from src.criminalNetwork.utils.logger import logger
 from src.criminalNetwork.utils.exception import CriminalNetworkException
+from src.criminalNetwork.utils.common import normalize_neo4j_uri
 
 
 class GraphAnalytics:
     def __init__(self, config: GraphAnalyticsConfig):
         self.config = config
-        uri = self.config.neo4j_uri
-        if self.config.trust_self_signed_certificate:
-            uri = uri.replace("neo4j+s://", "neo4j+ssc://", 1).replace("bolt+s://", "bolt+ssc://", 1)
+        uri = normalize_neo4j_uri(self.config.neo4j_uri, self.config.trust_self_signed_certificate)
+        if self.config.trust_self_signed_certificate and ".neo4j.io" not in uri.lower():
             logger.warning("Neo4j self-signed certificate trust is enabled")
         self.driver = GraphDatabase.driver(
             uri,

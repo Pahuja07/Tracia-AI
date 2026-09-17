@@ -9,6 +9,7 @@ from neo4j import GraphDatabase
 from src.criminalNetwork.entity.config_entity import AgentConfig
 from src.criminalNetwork.utils.logger import logger
 from src.criminalNetwork.utils.exception import CriminalNetworkException
+from src.criminalNetwork.utils.common import normalize_neo4j_uri
 
 
 class CriminalNetworkAgent:
@@ -20,9 +21,7 @@ class CriminalNetworkAgent:
             model=self.config.llm_model_name,
             api_key=self.config.openai_api_key,
         )
-        uri = self.config.neo4j_uri
-        if self.config.trust_self_signed_certificate:
-            uri = uri.replace("neo4j+s://", "neo4j+ssc://", 1).replace("bolt+s://", "bolt+ssc://", 1)
+        uri = normalize_neo4j_uri(self.config.neo4j_uri, self.config.trust_self_signed_certificate)
         self.driver = GraphDatabase.driver(
             uri,
             auth=(self.config.neo4j_username, self.config.neo4j_password),

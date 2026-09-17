@@ -11,6 +11,28 @@ from src.criminalNetwork.utils.exception import CriminalNetworkException
 logger = logging.getLogger(__name__)
 
 
+def normalize_neo4j_uri(uri: str, trust_self_signed_certificate: bool) -> str:
+    """Return a Neo4j URI that matches the target certificate trust mode.
+
+    Some Neo4j cloud or self-hosted deployments present a self-signed certificate chain,
+    even when the hostname is a `.neo4j.io` domain. In that case the driver must be
+    told to trust the self-signed certificate using the `+ssc` scheme.
+    """
+    if not uri:
+        return uri
+
+    normalized_uri = uri.strip()
+    if trust_self_signed_certificate:
+        return (
+            normalized_uri.replace("neo4j+s://", "neo4j+ssc://", 1)
+            .replace("bolt+s://", "bolt+ssc://", 1)
+            .replace("neo4j://", "neo4j+ssc://", 1)
+            .replace("bolt://", "bolt+ssc://", 1)
+        )
+
+    return normalized_uri
+
+
 def create_directories(path_to_directories: str) -> None:
     os.makedirs(path_to_directories, exist_ok=True)
 

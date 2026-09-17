@@ -50,17 +50,70 @@ case_upload:
 case_extraction:
   output_dir: artifacts/case_extraction
   common_entities_path: artifacts/case_extraction/common_entities.csv
+
+# Case-first investigation flow. Each stage has an independently auditable output.
+document_processing:
+  output_dir: artifacts/document_processing
+  documents_path: artifacts/document_processing/documents.csv
+
+case_understanding:
+  output_dir: artifacts/case_understanding
+  profiles_path: artifacts/case_understanding/case_profiles.json
+
+dynamic_schema:
+  output_dir: artifacts/dynamic_schema
+  schemas_path: artifacts/dynamic_schema/extraction_schemas.json
+
+evidence_extraction:
+  output_dir: artifacts/evidence_extraction
+  entities_path: artifacts/evidence_extraction/extracted_entities.csv
+  evidence_path: artifacts/evidence_extraction/evidence.csv
+
+tabular_model:
+  output_dir: artifacts/tabular
+  cases_path: artifacts/tabular/cases.csv
+  entities_path: artifacts/tabular/entities.csv
+  evidence_path: artifacts/tabular/evidence.csv
   
 relationship_extraction:
-  common_entities_path: artifacts/case_extraction/common_entities.csv
+  common_entities_path: artifacts/tabular/entities.csv
   relationship_mapping_file: config/mappings/07_relationship.yaml
   output_path: artifacts/case_extraction/relationships.csv
+
+cross_case_analysis:
+  output_file: artifacts/cross_case/cross_case_links.csv
+
+feature_engineering:
+  output_file: artifacts/features/relationship_features.csv
+  time_decay_days: 30
+  location_decay_km: 50
+
+association_mining:
+  rules_output_file: artifacts/association_mining/association_rules.csv
+  role_output_file: artifacts/association_mining/associative_roles.csv
+  min_support: 0.1
+  min_confidence: 0.5
+  lift_cap: 5.0
+
+statistical_analysis:
+  correlation_output_file: artifacts/statistics/spearman_correlations.csv
+  bayesian_output_file: artifacts/statistics/bayesian_relationship_support.csv
+
+lead_scoring:
+  output_file: artifacts/lead_scoring/lead_match_scores.csv
+  weights:
+    entity_relationship: 0.25
+    crime_similarity: 0.10
+    time_proximity: 0.15
+    location_proximity: 0.05
+    cross_case_recurrence: 0.15
+    association_strength: 0.30
 
 
   
 entity_resolution:
   root_dir: artifacts/entity_resolution
-  input_entities_file: artifacts/case_extraction/common_entities.csv
+  input_entities_file: artifacts/tabular/entities.csv
   input_relationships_file: artifacts/case_extraction/relationships.csv
   resolved_entities_file: artifacts/entity_resolution/resolved_entities.csv
   resolved_relationships_file: artifacts/entity_resolution/resolved_relationships.csv

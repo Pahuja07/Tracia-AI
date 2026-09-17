@@ -38,6 +38,9 @@ tenacity
 
 #---Graph analytics
 python-louvain
+mlxtend
+scipy
+pgmpy
 
 #---Package setup
 setuptools

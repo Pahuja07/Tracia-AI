@@ -39,6 +39,26 @@ entity_types:
     required_properties: [name, entity_type]
     optional_properties: []
 
+  Address:
+    required_properties: [name, entity_type]
+    optional_properties: [city, latitude, longitude]
+
+  BankAccount:
+    required_properties: [name, entity_type]
+    optional_properties: [account_number, bank_name]
+
+  Transaction:
+    required_properties: [name, entity_type]
+    optional_properties: [amount, currency, transaction_date]
+
+  Communication:
+    required_properties: [name, entity_type]
+    optional_properties: [communication_type, timestamp]
+
+  Evidence:
+    required_properties: [name, entity_type]
+    optional_properties: [case_id, source_file, page_number, text_span, confidence, sha256]
+
   CRIME:
     required_properties: [name, entity_type]
     optional_properties: []
@@ -71,6 +91,37 @@ relationship_types:
       - [Person, Person]
       - [Person, EMAIL]
       - [Person, PHONE]
+
+  CALLS:
+    valid_pairs:
+      - [Person, PHONE]
+      - [Phone, Phone]
+
+  MESSAGES:
+    valid_pairs:
+      - [Person, PHONE]
+      - [Phone, Phone]
+
+  MEMBER_OF:
+    valid_pairs:
+      - [Person, Organization]
+
+  USES_ACCOUNT:
+    valid_pairs:
+      - [Person, BankAccount]
+      - [Organization, BankAccount]
+
+  TRANSFERRED_TO:
+    valid_pairs:
+      - [BankAccount, BankAccount]
+
+  TRANSACTED_WITH:
+    valid_pairs:
+      - [Person, Transaction]
+      - [BankAccount, Transaction]
+
+  SUPPORTED_BY:
+    valid_pairs: []
 
   HAS_CRIME:
     valid_pairs:

@@ -41,6 +41,43 @@ class CaseExtractionConfig:
     common_entities_path: Path
 
 @dataclass(frozen=True)
+class DocumentProcessingConfig:
+    manifest_path: Path
+    output_dir: Path
+    documents_path: Path
+
+@dataclass(frozen=True)
+class CaseUnderstandingConfig:
+    documents_path: Path
+    output_dir: Path
+    profiles_path: Path
+
+@dataclass(frozen=True)
+class DynamicSchemaConfig:
+    profiles_path: Path
+    output_dir: Path
+    schemas_path: Path
+
+@dataclass(frozen=True)
+class EvidenceExtractionConfig:
+    documents_path: Path
+    schemas_path: Path
+    output_dir: Path
+    entities_path: Path
+    evidence_path: Path
+
+@dataclass(frozen=True)
+class TabularModelConfig:
+    documents_path: Path
+    profiles_path: Path
+    extracted_entities_path: Path
+    extracted_evidence_path: Path
+    output_dir: Path
+    cases_path: Path
+    entities_path: Path
+    evidence_path: Path
+
+@dataclass(frozen=True)
 class RelationshipExtractionConfig:
     common_entities_path: Path
     relationship_mapping_file: Path
@@ -115,4 +152,42 @@ class AgentConfig:
     neo4j_password: str
     trust_self_signed_certificate: bool
     openai_api_key: str
+
+@dataclass(frozen=True)
+class CrossCaseAnalysisConfig:
+    resolved_entities_file: Path
+    resolved_relationships_file: Path
+    output_file: Path
+
+@dataclass(frozen=True)
+class FeatureEngineeringConfig:
+    cross_case_file: Path
+    resolved_relationships_file: Path
+    output_file: Path
+    time_decay_days: float
+    location_decay_km: float
+
+@dataclass(frozen=True)
+class AssociationMiningConfig:
+    entities_file: Path
+    relationships_file: Path
+    rules_output_file: Path
+    min_support: float
+    min_confidence: float
+    lift_cap: float
+    role_output_file: Path
+
+@dataclass(frozen=True)
+class StatisticalAnalysisConfig:
+    features_file: Path
+    correlation_output_file: Path
+    bayesian_output_file: Path
+
+@dataclass(frozen=True)
+class LeadScoringConfig:
+    features_file: Path
+    association_rules_file: Path
+    bayesian_file: Path
+    output_file: Path
+    weights: dict
 
