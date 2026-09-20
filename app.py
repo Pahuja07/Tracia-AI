@@ -3,7 +3,7 @@ import argparse
 from src.criminalNetwork.config.configuration import ConfigurationManager
 from src.criminalNetwork.components.agent import CriminalNetworkAgent
 
-
+#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
 def main() -> None:
     parser = argparse.ArgumentParser(description="Query the criminal-network analysis agent.")
     parser.add_argument("query", nargs="?", help="The investigator's question.")

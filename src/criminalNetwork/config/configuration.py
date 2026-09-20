@@ -237,6 +237,7 @@ class ConfigurationManager:
             embedding_model_name=config["embedding_model_name"],
             chunk_size=config["chunk_size"],
             chunk_overlap=config["chunk_overlap"],
+            offline_mode=bool(config.get("offline_mode", True)),
     )
     def get_agent_config(self) -> AgentConfig:
         config = self.config["agent"]

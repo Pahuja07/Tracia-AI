@@ -23,6 +23,13 @@ Run it locally with:
 uvicorn api.server:app --reload
 ```
 
+Run the API in Docker with:
+
+```powershell
+docker build -t criminal-network-api .
+docker run --rm -p 8000:8000 --env-file .env criminal-network-api
+```
+
 Available endpoints:
 
 - `GET /api/v1/map/cases` lists cases that have graph relationship output.

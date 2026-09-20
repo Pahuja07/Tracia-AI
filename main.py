@@ -8,23 +8,8 @@ import json
 
 from src.criminalNetwork.utils.logger import logger
 from src.criminalNetwork.config.configuration import ConfigurationManager
-
-from src.criminalNetwork.pipeline.stage_06_5_graph_loading import GraphBuilderPipeline
-from src.criminalNetwork.pipeline.stage_01_bulk_ingestion import DataIngestionPipeline
-from src.criminalNetwork.pipeline.stage_02_normalize_datasets import DataPreprocessingPipeline
-from src.criminalNetwork.pipeline.stage_03_extraction import EntityExtractionPipeline
 from src.criminalNetwork.pipeline.stage_04_case_upload import CaseUploadPipeline
 from src.criminalNetwork.pipeline.stage_05_document_processing import DocumentProcessingPipeline
-from src.criminalNetwork.pipeline.stage_06_case_understanding import CaseUnderstandingPipeline
-from src.criminalNetwork.pipeline.stage_07_dynamic_schema import DynamicSchemaPipeline
-from src.criminalNetwork.pipeline.stage_08_evidence_extraction import EvidenceExtractionPipeline
-from src.criminalNetwork.pipeline.stage_09_tabular_model import TabularModelPipeline
-from src.criminalNetwork.pipeline.stage_06_relationship import RelationshipExtractionPipeline
-from src.criminalNetwork.pipeline.stage_06_4_entity_resolution import EntityResolutionPipeline
-from src.criminalNetwork.pipeline.stage_07_05_graph_analytics import GraphAnalyticsPipeline
-from src.criminalNetwork.pipeline.stage_09_evidence_hash import EvidenceIntegrityPipeline
-from src.criminalNetwork.pipeline.stage_12_investigative_analytics import InvestigativeAnalyticsPipeline
-from src.criminalNetwork.pipeline.stage_07_rag_setup import RAGIndexingPipeline
 
 
 def _run(name, action):
@@ -50,6 +35,20 @@ def run_case_first_pipeline():
         _mark_processed_cases_complete()
         logger.info("No new case document was registered; stored tables and graph remain unchanged.")
         return
+
+    # Heavy libraries (Torch, FAISS, pgmpy, mlxtend) are loaded only when a
+    # document is genuinely pending. An ordinary no-change check stays fast.
+    from src.criminalNetwork.pipeline.stage_06_case_understanding import CaseUnderstandingPipeline
+    from src.criminalNetwork.pipeline.stage_07_dynamic_schema import DynamicSchemaPipeline
+    from src.criminalNetwork.pipeline.stage_08_evidence_extraction import EvidenceExtractionPipeline
+    from src.criminalNetwork.pipeline.stage_09_tabular_model import TabularModelPipeline
+    from src.criminalNetwork.pipeline.stage_06_relationship import RelationshipExtractionPipeline
+    from src.criminalNetwork.pipeline.stage_06_4_entity_resolution import EntityResolutionPipeline
+    from src.criminalNetwork.pipeline.stage_06_5_graph_loading import GraphBuilderPipeline
+    from src.criminalNetwork.pipeline.stage_07_05_graph_analytics import GraphAnalyticsPipeline
+    from src.criminalNetwork.pipeline.stage_12_investigative_analytics import InvestigativeAnalyticsPipeline
+    from src.criminalNetwork.pipeline.stage_09_evidence_hash import EvidenceIntegrityPipeline
+    from src.criminalNetwork.pipeline.stage_07_rag_setup import RAGIndexingPipeline
     _run("Case Understanding", lambda: CaseUnderstandingPipeline().main())
     _run("Dynamic Extraction Schema", lambda: DynamicSchemaPipeline().main())
     _run("Entity and Evidence Extraction", lambda: EvidenceExtractionPipeline().main())

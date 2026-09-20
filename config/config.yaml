@@ -161,6 +161,7 @@ rag_pipeline:
   embedding_model_name: all-MiniLM-L6-v2
   chunk_size: 500
   chunk_overlap: 50
+  offline_mode: true  # use the cached embedding model; avoid remote model checks
 agent:
   vector_store_dir: artifacts/rag_pipeline/vector_store
   embedding_model_name: all-MiniLM-L6-v2

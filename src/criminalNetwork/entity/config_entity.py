@@ -138,6 +138,9 @@ class RAGPipelineConfig:
     embedding_model_name: str
     chunk_size: int
     chunk_overlap: int
+    offline_mode: bool
+
+
 @dataclass(frozen=True)
 class AgentConfig:
     vector_store_dir: Path

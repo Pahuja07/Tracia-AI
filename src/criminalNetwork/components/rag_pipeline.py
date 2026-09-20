@@ -15,6 +15,11 @@ from src.criminalNetwork.utils.exception import CriminalNetworkException
 class RAGPipeline:
     def __init__(self, config: RAGPipelineConfig):
         self.config = config
+        if self.config.offline_mode:
+            # Reuse the cached model. This avoids remote Hub checks and makes
+            # indexing deterministic in constrained/offline deployments.
+            os.environ.setdefault("HF_HUB_OFFLINE", "1")
+            os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
         self.embedding_model = HuggingFaceEmbeddings(model_name=self.config.embedding_model_name)
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=self.config.chunk_size,
