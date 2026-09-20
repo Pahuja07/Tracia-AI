@@ -49,12 +49,15 @@ class AssociationMining:
         transactions = [[f"{r.entity_type}:{r.entity_value}" for r in group.itertuples(index=False)] for _, group in entities.groupby("case_id")]
         if not transactions: result = pd.DataFrame(); self.config.rules_output_file.parent.mkdir(parents=True, exist_ok=True); result.to_csv(self.config.rules_output_file, index=False); return result
         matrix = TransactionEncoder().fit(transactions).transform(transactions)
-        frequent = fpgrowth(pd.DataFrame(matrix, columns=TransactionEncoder().fit(transactions).columns_), min_support=self.config.min_support, use_colnames=True)
+        # Pairwise rules are the most interpretable investigator-facing
+        # associations and avoid exponential itemset growth in dense cases.
+        frequent = fpgrowth(pd.DataFrame(matrix, columns=TransactionEncoder().fit(transactions).columns_), min_support=self.config.min_support, use_colnames=True, max_len=2)
         if frequent.empty or len(frequent) < 2: result = pd.DataFrame()
         else:
             result = association_rules(frequent, metric="confidence", min_threshold=self.config.min_confidence)
             result["normalized_lift"] = result["lift"].clip(upper=self.config.lift_cap) / self.config.lift_cap
             result["association_strength_score"] = 100 * (result["support"] + result["confidence"] + result["normalized_lift"]) / 3
+            result = result.sort_values("association_strength_score", ascending=False).head(5000)
         self.config.rules_output_file.parent.mkdir(parents=True, exist_ok=True); result.to_csv(self.config.rules_output_file, index=False)
         # Associative role mining: roles are labels for observable graph patterns, never assertions about criminality.
         relationships = pd.read_csv(self.config.relationships_file).dropna(subset=["source_entity_id", "target_entity_id"])

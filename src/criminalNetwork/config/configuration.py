@@ -11,7 +11,8 @@ from src.criminalNetwork.entity.config_entity import (
     , CaseUploadConfig, CaseExtractionConfig, RelationshipExtractionConfig, EntityResolutionConfig,
     GraphBuilderConfig, GraphAnalyticsConfig, EvidenceIntegrityConfig,RAGPipelineConfig,AgentConfig,
     DocumentProcessingConfig, CaseUnderstandingConfig, DynamicSchemaConfig, EvidenceExtractionConfig, TabularModelConfig,
-    CrossCaseAnalysisConfig, FeatureEngineeringConfig, AssociationMiningConfig, StatisticalAnalysisConfig, LeadScoringConfig
+    CrossCaseAnalysisConfig, FeatureEngineeringConfig, AssociationMiningConfig, StatisticalAnalysisConfig, LeadScoringConfig,
+    SpatialIntelligenceConfig
 )
 
 from src.criminalNetwork.entity.config_entity import DataIngestionConfig, RelationshipExtractionConfig
@@ -194,6 +195,18 @@ class ConfigurationManager:
     def get_lead_scoring_config(self) -> LeadScoringConfig:
         cfg = self.config["lead_scoring"]; path = self._resolve_path(cfg["output_file"]); create_directories(path.parent)
         return LeadScoringConfig(self._resolve_path(self.config["feature_engineering"]["output_file"]), self._resolve_path(self.config["association_mining"]["rules_output_file"]), self._resolve_path(self.config["statistical_analysis"]["bayesian_output_file"]), path, cfg["weights"])
+
+    def get_spatial_intelligence_config(self) -> SpatialIntelligenceConfig:
+        cfg = self.config["spatial_intelligence"]
+        return SpatialIntelligenceConfig(
+            entities_file=self._resolve_path(cfg["entities_file"]),
+            evidence_file=self._resolve_path(cfg["evidence_file"]),
+            relationships_file=self._resolve_path(cfg["relationships_file"]),
+            resolved_entities_file=self._resolve_path(cfg["resolved_entities_file"]),
+            centrality_file=self._resolve_path(cfg["centrality_file"]),
+            community_file=self._resolve_path(cfg["community_file"]),
+            lead_scores_file=self._resolve_path(cfg["lead_scores_file"]),
+        )
 
     def get_evidence_integrity_config(self) -> EvidenceIntegrityConfig:
         config = self.config["evidence_integrity"]

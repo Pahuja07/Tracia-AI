@@ -35,6 +35,11 @@ class EntityResolution:
             if canonical_type == entity_type and self._normalize(canonical) == norm_name:
                 return canonical, "exact"
 
+        # Identifier-like values must never be fuzzy-merged: similar dates,
+        # account numbers, and phone numbers denote distinct observations.
+        if entity_type.upper() in {"DATE", "PHONE", "BANK_ACCOUNT", "CASE_REFERENCE", "TRANSACTION", "COMMUNICATION", "PROPERTY"}:
+            return None, None
+
         # 2. fuzzy match
         best_score, best_canonical = 0, None
         for (canonical, canonical_type), data in self.resolved_entities.items():

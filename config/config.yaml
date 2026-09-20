@@ -91,7 +91,7 @@ feature_engineering:
 association_mining:
   rules_output_file: artifacts/association_mining/association_rules.csv
   role_output_file: artifacts/association_mining/associative_roles.csv
-  min_support: 0.1
+  min_support: 0.25
   min_confidence: 0.5
   lift_cap: 5.0
 
@@ -108,6 +108,17 @@ lead_scoring:
     location_proximity: 0.05
     cross_case_recurrence: 0.15
     association_strength: 0.30
+
+# Read-only map integration. Coordinates must originate in case evidence; this
+# project deliberately does not geocode or invent them.
+spatial_intelligence:
+  entities_file: artifacts/tabular/entities.csv
+  evidence_file: artifacts/tabular/evidence.csv
+  relationships_file: artifacts/entity_resolution/resolved_relationships.csv
+  resolved_entities_file: artifacts/entity_resolution/resolved_entities.csv
+  centrality_file: artifacts/graph_analytics/centrality_scores.csv
+  community_file: artifacts/graph_analytics/community_clusters.csv
+  lead_scores_file: artifacts/lead_scoring/lead_match_scores.csv
 
 
   

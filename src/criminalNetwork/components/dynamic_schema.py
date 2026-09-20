@@ -5,7 +5,7 @@ from src.criminalNetwork.entity.config_entity import DynamicSchemaConfig
 class DynamicExtractionSchema:
     BASE = ["PERSON", "PHONE", "EMAIL", "DATE", "LOCATION", "CASE_REFERENCE"]
     EXTRA = {
-        "financial_fraud": ["BANK_ACCOUNT", "TRANSACTION", "ORGANIZATION"],
+        "financial_fraud": ["BANK_ACCOUNT", "TRANSACTION", "ORGANIZATION", "PROPERTY", "CRIME", "COMMUNICATION"],
         "vehicle_crime": ["VEHICLE", "LOCATION", "ORGANIZATION"],
         "violent_crime": ["WEAPON", "VICTIM", "LOCATION", "ORGANIZATION"],
         "communication_case": ["PHONE", "EMAIL", "COMMUNICATION"],

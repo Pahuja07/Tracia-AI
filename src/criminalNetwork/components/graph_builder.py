@@ -92,24 +92,16 @@ class GraphBuilder:
     def build_nodes(self):
         try:
             entities_df = pd.read_csv(self.config.resolved_entities_file)
+            batches = {}
+            for _, row in entities_df.iterrows():
+                validated_type = self._validate_entity_type(row["entity_type"])
+                self.entity_type_lookup[row["entity_id"]] = validated_type
+                batches.setdefault(self._sanitize_label(validated_type), []).append({"entity_id": row["entity_id"], "name": row["canonical_name"], "entity_type": validated_type})
             with self.driver.session(database=self.config.neo4j_database) as session:
-                for _, row in entities_df.iterrows():
-                    validated_type = self._validate_entity_type(row["entity_type"])
-                    self.entity_type_lookup[row["entity_id"]] = validated_type
-
-                    session.execute_write(
-                        self._merge_node_tx,
-                        row["entity_id"],
-                        row["canonical_name"],
-                        validated_type,
-                    )
-                    self.build_log.append({
-                        "type": "node",
-                        "entity_id": row["entity_id"],
-                        "name": row["canonical_name"],
-                        "entity_type": validated_type,
-                        "status": "merged",
-                    })
+                for label, rows in batches.items():
+                    query = f"UNWIND $rows AS row MERGE (e:Entity {{entity_id: row.entity_id}}) SET e.name=row.name, e.entity_type=row.entity_type SET e:{label}"
+                    session.run(query, rows=rows).consume()
+            self.build_log.extend({"type": "node", "entity_id": row["entity_id"], "name": row["canonical_name"], "entity_type": self.entity_type_lookup[row["entity_id"]], "status": "merged"} for _, row in entities_df.iterrows())
             logger.info(f"{len(entities_df)} nodes merged into Neo4j")
         except Exception as e:
             raise CriminalNetworkException(e, sys) from e
@@ -141,8 +133,8 @@ class GraphBuilder:
             )
             skipped, flagged = 0, 0
 
-            with self.driver.session(database=self.config.neo4j_database) as session:
-                for _, row in rel_df.iterrows():
+            batches = {}
+            for _, row in rel_df.iterrows():
                     source_id, target_id = row["source_entity_id"], row["target_entity_id"]
 
                     if pd.isna(source_id) or pd.isna(target_id):
@@ -164,13 +156,8 @@ class GraphBuilder:
                     }
                     properties["schema_valid"] = is_valid
 
-                    session.execute_write(
-                        self._merge_relationship_tx,
-                        source_id,
-                        target_id,
-                        validated_rel_type,
-                        properties,
-                    )
+                    label = "".join(ch for ch in str(validated_rel_type).upper().replace(" ", "_") if ch.isalnum() or ch == "_") or "RELATED_TO"
+                    batches.setdefault(label, []).append({"source_id": source_id, "target_id": target_id, "properties": properties})
                     self.build_log.append({
                         "type": "relationship",
                         "source": source_id,
@@ -179,6 +166,10 @@ class GraphBuilder:
                         "schema_valid": is_valid,
                         "status": "merged",
                     })
+            with self.driver.session(database=self.config.neo4j_database) as session:
+                for label, rows in batches.items():
+                    query = f"UNWIND $rows AS row MATCH (a:Entity {{entity_id: row.source_id}}) MATCH (b:Entity {{entity_id: row.target_id}}) MERGE (a)-[r:{label}]->(b) SET r += row.properties"
+                    session.run(query, rows=rows).consume()
 
             if skipped:
                 logger.warning(f"{skipped} relationship rows skipped due to unresolved entity_id")

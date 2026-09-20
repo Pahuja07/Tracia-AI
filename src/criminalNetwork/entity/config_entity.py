@@ -191,3 +191,15 @@ class LeadScoringConfig:
     output_file: Path
     weights: dict
 
+
+@dataclass(frozen=True)
+class SpatialIntelligenceConfig:
+    """Read-only inputs for the map/API integration layer."""
+    entities_file: Path
+    evidence_file: Path
+    relationships_file: Path
+    resolved_entities_file: Path
+    centrality_file: Path
+    community_file: Path
+    lead_scores_file: Path
+

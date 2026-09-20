@@ -149,23 +149,21 @@ class GraphAnalytics:
                     community_df[["entity_id", "community_id"]], on="entity_id", how="left"
                 )
 
-            def _update_tx(tx, row):
-                tx.run(
-                    "MATCH (e:Entity {entity_id: $entity_id}) "
-                    "SET e.degree_centrality = $degree_centrality, "
-                    "e.betweenness_centrality = $betweenness_centrality, "
-                    "e.pagerank = $pagerank, "
-                    "e.community_id = $community_id",
-                    entity_id=row["entity_id"],
-                    degree_centrality=float(row["degree_centrality"]),
-                    betweenness_centrality=float(row["betweenness_centrality"]),
-                    pagerank=float(row["pagerank"]),
-                    community_id=int(row["community_id"]) if pd.notna(row.get("community_id")) else -1,
-                )
-
             with self.driver.session(database=self.config.neo4j_database) as session:
-                for _, row in merged_df.iterrows():
-                    session.execute_write(_update_tx, row)
+                rows = [{
+                    "entity_id": row["entity_id"],
+                    "degree_centrality": float(row["degree_centrality"]),
+                    "betweenness_centrality": float(row["betweenness_centrality"]),
+                    "pagerank": float(row["pagerank"]),
+                    "community_id": int(row["community_id"]) if pd.notna(row.get("community_id")) else -1,
+                } for _, row in merged_df.iterrows()]
+                session.run(
+                    "UNWIND $rows AS row MATCH (e:Entity {entity_id: row.entity_id}) "
+                    "SET e.degree_centrality=row.degree_centrality, "
+                    "e.betweenness_centrality=row.betweenness_centrality, "
+                    "e.pagerank=row.pagerank, e.community_id=row.community_id",
+                    rows=rows,
+                ).consume()
 
             logger.info("Centrality and community scores written back to Neo4j nodes")
         except Exception as e:

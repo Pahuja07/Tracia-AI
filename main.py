@@ -1,4 +1,13 @@
+"""TRACIA's case-first investigative workflow.
+
+The active execution path uses case documents, the audited tabular evidence
+model, and then Neo4j. The legacy bulk-dataset code below is retained only for
+backwards source compatibility and is unreachable from this entry point.
+"""
+import json
+
 from src.criminalNetwork.utils.logger import logger
+from src.criminalNetwork.config.configuration import ConfigurationManager
 
 from src.criminalNetwork.pipeline.stage_06_5_graph_loading import GraphBuilderPipeline
 from src.criminalNetwork.pipeline.stage_01_bulk_ingestion import DataIngestionPipeline
@@ -16,19 +25,60 @@ from src.criminalNetwork.pipeline.stage_07_05_graph_analytics import GraphAnalyt
 from src.criminalNetwork.pipeline.stage_09_evidence_hash import EvidenceIntegrityPipeline
 from src.criminalNetwork.pipeline.stage_12_investigative_analytics import InvestigativeAnalyticsPipeline
 from src.criminalNetwork.pipeline.stage_07_rag_setup import RAGIndexingPipeline
-# ---------------- Stage 01: Data Ingestion ----------------
+
+
+def _run(name, action):
+    logger.info(">>>>>> stage %s started <<<<<<", name)
+    result = action()
+    logger.info(">>>>>> stage %s completed <<<<<<", name)
+    return result
+
+
+def _mark_processed_cases_complete():
+    config = ConfigurationManager().get_case_upload_config()
+    records = json.loads(config.manifest_path.read_text(encoding="utf-8"))
+    for record in records:
+        if record.get("processing_status") == "document_processed":
+            record["processing_status"] = "completed"
+    config.manifest_path.write_text(json.dumps(records, indent=2), encoding="utf-8")
+
+
+def run_case_first_pipeline():
+    _run("Case Upload", lambda: CaseUploadPipeline().main())
+    new_documents = _run("Document Processing", lambda: DocumentProcessingPipeline().main())
+    if new_documents.empty:
+        _mark_processed_cases_complete()
+        logger.info("No new case document was registered; stored tables and graph remain unchanged.")
+        return
+    _run("Case Understanding", lambda: CaseUnderstandingPipeline().main())
+    _run("Dynamic Extraction Schema", lambda: DynamicSchemaPipeline().main())
+    _run("Entity and Evidence Extraction", lambda: EvidenceExtractionPipeline().main())
+    _run("Tabular Evidence Model", lambda: TabularModelPipeline().main())
+    _run("Relationship Extraction", lambda: RelationshipExtractionPipeline().main())
+    _run("Entity Resolution", lambda: EntityResolutionPipeline().main())
+    _run("Neo4j Graph Build", lambda: GraphBuilderPipeline().main())
+    _run("Graph Analytics", lambda: GraphAnalyticsPipeline().main())
+    _run("Cross-Case and Lead Analytics", lambda: InvestigativeAnalyticsPipeline().main())
+    _run("Evidence Integrity", lambda: EvidenceIntegrityPipeline().main())
+    _run("RAG Indexing", lambda: RAGIndexingPipeline().main())
+    _mark_processed_cases_complete()
+
+
+if __name__ == "__main__":
+    run_case_first_pipeline()
+    raise SystemExit(0)
+
 STAGE_NAME = "Data Ingestion Stage"
 try:
     logger.info(f">>>>>> stage {STAGE_NAME} started <<<<<<")
     data_ingestion = DataIngestionPipeline()
-    data_ingestion.main()  # aapke existing ingestion loop/logic ke hisaab se
+    data_ingestion.main()
     logger.info(f">>>>>> stage {STAGE_NAME} completed <<<<<<\n\nx==========x")
 except Exception as e:
     logger.exception(e)
     raise e
 
 
-# ---------------- Stage 02: Data Preprocessing ----------------
 STAGE_NAME = "Data Preprocessing Stage"
 try:
     logger.info(f">>>>>> stage {STAGE_NAME} started <<<<<<")
