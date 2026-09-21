@@ -151,7 +151,9 @@ def ask(request: AskRequest):
     try:
         from src.criminalNetwork.components.agent import CriminalNetworkAgent
         agent = CriminalNetworkAgent(_manager().get_agent_config())
-        try: return {"answer": agent.answer_query(request.question, request.entity_focus), "case_id": request.case_id, "grounded": True}
+        try:
+            answer = agent.answer_query(request.question, request.entity_focus, request.case_id)
+            return {"answer": answer, "case_id": request.case_id, "grounded": True, "answer_mode": agent.last_answer_mode}
         finally: agent.close()
     except Exception as error: raise HTTPException(503, f"RAG/LLM explanation is unavailable: {error}") from error
 
