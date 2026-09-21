@@ -146,7 +146,20 @@ def cyber_attacks(attack_id: str | None = None, attack_a: str | None = None, att
 @router.get("/evidence/{evidence_id}", tags=["Evidence"])
 def get_evidence(evidence_id: str): return _one(_read(_paths()["evidence"]), "evidence_id", evidence_id, "Evidence")
 
+@router.get("/copilot", tags=["RAG / LLM"])
+def copilot_status():
+    """Lightweight endpoint for frontend Copilot availability checks."""
+    return {
+        "status": "available",
+        "chat_endpoint": "/api/copilot/ask",
+        "fallback_available": True,
+        "notice": "Responses are grounded in indexed evidence, Neo4j relationships, and existing analytics.",
+    }
+
+
 @router.post("/ask", tags=["RAG / LLM"])
+@router.post("/copilot", tags=["RAG / LLM"])
+@router.post("/copilot/ask", tags=["RAG / LLM"])
 def ask(request: AskRequest):
     try:
         from src.criminalNetwork.components.agent import CriminalNetworkAgent
