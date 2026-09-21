@@ -27,12 +27,16 @@ class GraphAnalytics:
         self.driver.close()
 
     def _fetch_nodes_tx(self, tx):
-        query = "MATCH (e:Entity) RETURN e.entity_id AS entity_id, e.name AS name, e.entity_type AS entity_type"
+        query = (
+            "MATCH (e:Entity) WHERE e.entity_id IS NOT NULL "
+            "RETURN e.entity_id AS entity_id, e.name AS name, e.entity_type AS entity_type"
+        )
         return list(tx.run(query))
 
     def _fetch_relationships_tx(self, tx):
         query = (
             "MATCH (a:Entity)-[r]->(b:Entity) "
+            "WHERE a.entity_id IS NOT NULL AND b.entity_id IS NOT NULL "
             "RETURN a.entity_id AS source, b.entity_id AS target, type(r) AS rel_type"
         )
         return list(tx.run(query))
