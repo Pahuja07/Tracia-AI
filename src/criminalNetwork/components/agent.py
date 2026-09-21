@@ -1,3 +1,4 @@
+import os
 import sys
 import pandas as pd
 
@@ -15,7 +16,16 @@ from src.criminalNetwork.utils.common import normalize_neo4j_uri
 class CriminalNetworkAgent:
     def __init__(self, config: AgentConfig):
         self.config = config
-        self.embedding_model = HuggingFaceEmbeddings(model_name=self.config.embedding_model_name)
+        if not self.config.openai_api_key:
+            raise ValueError("OPENAI_API_KEY is not configured. Add it to .env before using the chatbot.")
+        # The pipeline already downloaded this model while building FAISS. Do
+        # not block investigator queries on a remote Hugging Face check.
+        os.environ.setdefault("HF_HUB_OFFLINE", "1")
+        os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+        self.embedding_model = HuggingFaceEmbeddings(
+            model_name=self.config.embedding_model_name,
+            model_kwargs={"local_files_only": True},
+        )
         self.vector_store = self._load_vector_store()
         self.llm = ChatOpenAI(
             model=self.config.llm_model_name,
