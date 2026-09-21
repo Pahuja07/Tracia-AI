@@ -1,6 +1,0 @@
-FIR-2026-001
-
-Person: Priya Sharma
-Email: priya.sharma@example.com
-Phone: +91 98765 43210
-Incident report recorded on 2026-09-04.

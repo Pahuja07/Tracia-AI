@@ -156,14 +156,16 @@ evidence_integrity:
 rag_pipeline:
   root_dir: artifacts/rag_pipeline
   input_documents_dir: data/cases/incoming
-  vector_store_dir: artifacts/rag_pipeline/vector_store
+  # New cases build a fresh index here. This prevents a previous case batch
+  # from being queried after an investigation reset.
+  vector_store_dir: artifacts/rag_pipeline/vector_store_current
   chunk_metadata_file: artifacts/rag_pipeline/chunk_metadata.csv
   embedding_model_name: all-MiniLM-L6-v2
   chunk_size: 500
   chunk_overlap: 50
   offline_mode: true  # use the cached embedding model; avoid remote model checks
 agent:
-  vector_store_dir: artifacts/rag_pipeline/vector_store
+  vector_store_dir: artifacts/rag_pipeline/vector_store_current
   embedding_model_name: all-MiniLM-L6-v2
   top_suspects_file: artifacts/graph_analytics/top_suspects_report.csv
   centrality_file: artifacts/graph_analytics/centrality_scores.csv

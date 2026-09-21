@@ -1,2 +1,0 @@
-case_id,source_entity,source_type,relation,target_entity,target_type,source_entity_id,target_entity_id,target_evidence_id,extraction_confidence
-case-1,case-1,CASE,OCCURRED_IN,Jaipur,LOCATION,E1,E2,EV1,0.9
