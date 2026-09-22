@@ -2,16 +2,25 @@
 from __future__ import annotations
 
 import json
+import os
+import re
+import threading
 from pathlib import Path
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 
 from src.criminalNetwork.components.spatial_intelligence import SpatialIntelligenceService
+from src.criminalNetwork.components.chroma_store import (
+    create_chroma_client,
+    get_evidence_collection,
+    get_interactions_collection,
+)
 from src.criminalNetwork.config.configuration import ConfigurationManager
 
 router = APIRouter(prefix="/api", tags=["TRACIA"])
+_development_pipeline_lock = threading.Lock()
 
 
 def _manager(): return ConfigurationManager()
@@ -39,14 +48,104 @@ def _cyber_unavailable():
     raise HTTPException(501, "Cyberattack APIs are unavailable: no validated cyberattack dataset or similarity output is configured.")
 
 
+def _interaction_collection():
+    config = _manager().get_agent_config()
+    client = create_chroma_client(
+        config.chroma_mode,
+        config.chroma_persist_directory,
+        config.chroma_api_key,
+        config.chroma_tenant,
+        config.chroma_database,
+    )
+    return config, get_interactions_collection(client, config.chroma_interactions_collection_name)
+
+
+def _evidence_collection():
+    config = _manager().get_rag_pipeline_config()
+    client = create_chroma_client(
+        config.chroma_mode,
+        config.chroma_persist_directory,
+        config.chroma_api_key,
+        config.chroma_tenant,
+        config.chroma_database,
+    )
+    return config, get_evidence_collection(client, config.chroma_collection_name)
+
+
+def _interaction_records(result):
+    records = []
+    for interaction_id, document, metadata in zip(
+        result.get("ids", []), result.get("documents", []), result.get("metadatas", [])
+    ):
+        try:
+            record = json.loads(document)
+        except (TypeError, json.JSONDecodeError):
+            record = {"interaction_id": interaction_id, "output": document}
+        record["interaction_id"] = interaction_id
+        record["chroma_metadata"] = metadata or {}
+        records.append(record)
+    return records
+
+
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
     case_id: str | None = None
     entity_focus: str | None = None
 
 
+def _require_development_mode():
+    if os.getenv("TRACIA_ENV", "production").lower() != "development":
+        raise HTTPException(403, "This endpoint is available only when TRACIA_ENV=development.")
+
+
+def _safe_upload_name(filename: str | None) -> str:
+    name = Path(filename or "uploaded_case.txt").name
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._ -]{0,120}", name):
+        raise HTTPException(422, "Filename contains unsupported characters.")
+    return name
+
+
 @router.get("/cases", tags=["Cases"])
 def list_cases(): return {"cases": _records(_read(_paths()["cases"]))}
+
+
+@router.post("/development/cases/upload", tags=["Development Pipeline"])
+async def upload_development_case(file: UploadFile = File(...)):
+    """Upload, chunk, extract, resolve, and index a fictional development case.
+
+    The response contains every local algorithm output needed by the frontend.
+    It deliberately skips shared Neo4j graph writes in development mode.
+    """
+    _require_development_mode()
+    filename = _safe_upload_name(file.filename)
+    allowed_extensions = {".txt", ".csv", ".json", ".pdf", ".png", ".jpg", ".jpeg"}
+    if Path(filename).suffix.lower() not in allowed_extensions:
+        raise HTTPException(422, "Unsupported file type.")
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(422, "Uploaded file is empty.")
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(413, "Development uploads are limited to 10 MB.")
+
+    upload_dir = _manager().get_case_upload_config().input_dir
+    destination = upload_dir / filename
+    if not _development_pipeline_lock.acquire(blocking=False):
+        raise HTTPException(409, "A development pipeline run is already in progress.")
+    try:
+        if destination.exists():
+            raise HTTPException(409, "A file with this name already exists. Rename it or use a different case file.")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(contents)
+        from src.criminalNetwork.components.development_workflow import run_uploaded_case_pipeline
+        result = run_uploaded_case_pipeline(filename)
+    except HTTPException:
+        raise
+    except Exception as error:
+        # Keep the uploaded source for auditable diagnosis and a retry after fixing the input.
+        raise HTTPException(500, f"Development pipeline failed: {error}") from error
+    finally:
+        _development_pipeline_lock.release()
+    return result
 
 @router.get("/cases/{case_id}", tags=["Cases"])
 def get_case(case_id: str): return _one(_read(_paths()["cases"]), "case_id", case_id, "Case")
@@ -152,6 +251,8 @@ def copilot_status():
     return {
         "status": "available",
         "chat_endpoint": "/api/copilot/ask",
+        "history_endpoint": "/api/chroma/interactions",
+        "evidence_endpoint": "/api/chroma/evidence",
         "fallback_available": True,
         "notice": "Responses are grounded in indexed evidence, Neo4j relationships, and existing analytics.",
     }
@@ -166,9 +267,60 @@ def ask(request: AskRequest):
         agent = CriminalNetworkAgent(_manager().get_agent_config())
         try:
             answer = agent.answer_query(request.question, request.entity_focus, request.case_id)
-            return {"answer": answer, "case_id": request.case_id, "grounded": True, "answer_mode": agent.last_answer_mode}
+            interaction_id = agent.last_interaction_id
+            return {
+                "answer": answer,
+                "case_id": request.case_id,
+                "grounded": True,
+                "answer_mode": agent.last_answer_mode,
+                "interaction_id": interaction_id or None,
+                "chroma_recorded": bool(interaction_id),
+                "chroma_record_url": f"/api/chroma/interactions/{interaction_id}" if interaction_id else None,
+            }
         finally: agent.close()
     except Exception as error: raise HTTPException(503, f"RAG/LLM explanation is unavailable: {error}") from error
+
+
+@router.get("/chroma/interactions", tags=["Chroma / Development"])
+@router.get("/copilot/history", tags=["Chroma / Development"])
+def chroma_interactions(case_id: str | None = None, limit: int = Query(20, ge=1, le=100)):
+    """Frontend-readable, persisted AI output; no LLM or Neo4j call is made."""
+    config, collection = _interaction_collection()
+    result = collection.get(
+        where={"case_id": case_id} if case_id else None,
+        limit=limit,
+        include=["documents", "metadatas"],
+    )
+    return {
+        "collection": config.chroma_interactions_collection_name,
+        "case_id": case_id,
+        "interactions": _interaction_records(result),
+    }
+
+
+@router.get("/chroma/interactions/{interaction_id}", tags=["Chroma / Development"])
+def chroma_interaction(interaction_id: str):
+    """Return exactly the answer record written by a previous ask request."""
+    config, collection = _interaction_collection()
+    result = collection.get(ids=[interaction_id], include=["documents", "metadatas"])
+    records = _interaction_records(result)
+    if not records:
+        raise HTTPException(404, f"Chroma interaction '{interaction_id}' was not found")
+    return {"collection": config.chroma_interactions_collection_name, "interaction": records[0]}
+
+
+@router.get("/chroma/evidence", tags=["Chroma / Development"])
+def chroma_evidence(limit: int = Query(20, ge=1, le=100)):
+    """Return the active Chroma evidence chunks for a development frontend."""
+    config, collection = _evidence_collection()
+    result = collection.get(limit=limit, include=["documents", "metadatas"])
+    evidence = [
+        {"chunk_id": chunk_id, "document": document, "chroma_metadata": metadata or {}}
+        for chunk_id, document, metadata in zip(
+            result.get("ids", []), result.get("documents", []), result.get("metadatas", [])
+        )
+    ]
+    return {"collection": config.chroma_collection_name, "evidence": evidence}
 
 @router.post("/entities/{entity_id}/explain", tags=["RAG / LLM"])
 def explain_entity(entity_id: str):

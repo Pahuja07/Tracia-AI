@@ -44,6 +44,7 @@ entity_extraction:
 
 case_upload:
   input_dir: data/cases/incoming
+  development_input_dir: data/cases/development/uploads
   upload_dir: artifacts/case_upload/files
   manifest_path: artifacts/case_upload/cases_manifest.json
 
@@ -156,16 +157,24 @@ evidence_integrity:
 rag_pipeline:
   root_dir: artifacts/rag_pipeline
   input_documents_dir: data/cases/incoming
-  # New cases build a fresh index here. This prevents a previous case batch
-  # from being queried after an investigation reset.
-  vector_store_dir: artifacts/rag_pipeline/vector_store_current
-  chunk_metadata_file: artifacts/rag_pipeline/chunk_metadata.csv
+  development_input_documents_dir: data/cases/development
+  # Chunks and their metadata live in Chroma, never in an in-process FAISS index.
+  # The collection is recreated at each indexing run so a reset cannot retrieve
+  # evidence from a previous case batch.
+  chroma_persist_directory: artifacts/chroma
+  chroma_collection_name: tracia_case_evidence
+  development_chroma_collection_name: tracia_dev_case_evidence
+  chroma_batch_size: 100
   embedding_model_name: all-MiniLM-L6-v2
   chunk_size: 500
   chunk_overlap: 50
   offline_mode: true  # use the cached embedding model; avoid remote model checks
 agent:
-  vector_store_dir: artifacts/rag_pipeline/vector_store_current
+  chroma_persist_directory: artifacts/chroma
+  chroma_collection_name: tracia_case_evidence
+  development_chroma_collection_name: tracia_dev_case_evidence
+  chroma_interactions_collection_name: tracia_agent_interactions
+  development_chroma_interactions_collection_name: tracia_dev_agent_interactions
   embedding_model_name: all-MiniLM-L6-v2
   top_suspects_file: artifacts/graph_analytics/top_suspects_report.csv
   centrality_file: artifacts/graph_analytics/centrality_scores.csv

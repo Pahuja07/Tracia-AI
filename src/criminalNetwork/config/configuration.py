@@ -86,7 +86,8 @@ class ConfigurationManager:
 
     def get_case_upload_config(self) -> CaseUploadConfig:
         case_cfg = self.config["case_upload"]
-        input_dir = self._resolve_path(case_cfg["input_dir"])
+        input_key = "development_input_dir" if os.getenv("TRACIA_ENV", "production").lower() == "development" else "input_dir"
+        input_dir = self._resolve_path(case_cfg[input_key])
         upload_dir = self._resolve_path(case_cfg["upload_dir"])
         manifest_path = self._resolve_path(case_cfg["manifest_path"])
         create_directories(input_dir)
@@ -224,16 +225,23 @@ class ConfigurationManager:
     def get_rag_pipeline_config(self) -> RAGPipelineConfig:
         config = self.config["rag_pipeline"]
         root_dir = self._resolve_path(config["root_dir"])
-        input_documents_dir = self._resolve_path(config["input_documents_dir"])
-        vector_store_dir = self._resolve_path(config["vector_store_dir"])
-        chunk_metadata_file = self._resolve_path(config["chunk_metadata_file"])
+        development_mode = os.getenv("TRACIA_ENV", "production").lower() == "development"
+        input_key = "development_input_documents_dir" if development_mode else "input_documents_dir"
+        collection_key = "development_chroma_collection_name" if development_mode else "chroma_collection_name"
+        input_documents_dir = self._resolve_path(config[input_key])
+        chroma_persist_directory = self._resolve_path(config["chroma_persist_directory"])
         create_directories(root_dir)
-        create_directories(vector_store_dir)
+        create_directories(chroma_persist_directory)
         return RAGPipelineConfig(
             root_dir=root_dir,
             input_documents_dir=input_documents_dir,
-            vector_store_dir=vector_store_dir,
-            chunk_metadata_file=chunk_metadata_file,
+            chroma_persist_directory=chroma_persist_directory,
+            chroma_collection_name=config[collection_key],
+            chroma_mode=os.getenv("CHROMA_MODE", "local").lower(),
+            chroma_tenant=os.getenv("CHROMA_TENANT") or None,
+            chroma_database=os.getenv("CHROMA_DATABASE") or None,
+            chroma_api_key=os.getenv("CHROMA_API_KEY") or None,
+            chroma_batch_size=int(config.get("chroma_batch_size", 100)),
             embedding_model_name=config["embedding_model_name"],
             chunk_size=config["chunk_size"],
             chunk_overlap=config["chunk_overlap"],
@@ -241,10 +249,22 @@ class ConfigurationManager:
     )
     def get_agent_config(self) -> AgentConfig:
         config = self.config["agent"]
+        development_mode = os.getenv("TRACIA_ENV", "production").lower() == "development"
+        evidence_collection_key = "development_chroma_collection_name" if development_mode else "chroma_collection_name"
+        interactions_collection_key = (
+            "development_chroma_interactions_collection_name"
+            if development_mode else "chroma_interactions_collection_name"
+        )
         raw_uri = os.getenv("NEO4J_URI", "")
         raw_flag = os.getenv("NEO4J_TRUST_SELF_SIGNED_CERTIFICATE", "false")
         return AgentConfig(
-            vector_store_dir=self._resolve_path(config["vector_store_dir"]),
+            chroma_persist_directory=self._resolve_path(config["chroma_persist_directory"]),
+            chroma_collection_name=config[evidence_collection_key],
+            chroma_interactions_collection_name=config[interactions_collection_key],
+            chroma_mode=os.getenv("CHROMA_MODE", "local").lower(),
+            chroma_tenant=os.getenv("CHROMA_TENANT") or None,
+            chroma_database=os.getenv("CHROMA_DATABASE") or None,
+            chroma_api_key=os.getenv("CHROMA_API_KEY") or None,
             embedding_model_name=config["embedding_model_name"],
             top_suspects_file=self._resolve_path(config["top_suspects_file"]),
             centrality_file=self._resolve_path(config["centrality_file"]),

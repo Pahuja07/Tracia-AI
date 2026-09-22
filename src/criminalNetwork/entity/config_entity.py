@@ -133,8 +133,13 @@ class EvidenceIntegrityConfig:
 class RAGPipelineConfig:
     root_dir: Path
     input_documents_dir: Path
-    vector_store_dir: Path
-    chunk_metadata_file: Path
+    chroma_persist_directory: Path
+    chroma_collection_name: str
+    chroma_mode: str
+    chroma_tenant: str | None
+    chroma_database: str | None
+    chroma_api_key: str | None
+    chroma_batch_size: int
     embedding_model_name: str
     chunk_size: int
     chunk_overlap: int
@@ -143,7 +148,13 @@ class RAGPipelineConfig:
 
 @dataclass(frozen=True)
 class AgentConfig:
-    vector_store_dir: Path
+    chroma_persist_directory: Path
+    chroma_collection_name: str
+    chroma_interactions_collection_name: str
+    chroma_mode: str
+    chroma_tenant: str | None
+    chroma_database: str | None
+    chroma_api_key: str | None
     embedding_model_name: str
     top_suspects_file: Path
     centrality_file: Path

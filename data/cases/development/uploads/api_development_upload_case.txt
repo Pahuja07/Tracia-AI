@@ -1,0 +1,9 @@
+FICTIONAL DEVELOPMENT CASE - NOT REAL
+CASE DEV-UPLOAD-API-001
+Date: 2026-09-22
+Person: Taylor Quinn
+Person: Morgan Reed
+Location: Aurora Training Center
+P001 - Taylor Quinn - trainer
+P002 - Morgan Reed - coordinator
+COM001,P001,P002,2026-09-22,training-call,documented
