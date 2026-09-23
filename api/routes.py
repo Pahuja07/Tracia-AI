@@ -273,6 +273,11 @@ def ask(request: AskRequest):
                 "case_id": request.case_id,
                 "grounded": True,
                 "answer_mode": agent.last_answer_mode,
+                "grounding": {
+                    "store": "chroma",
+                    "collection": agent.config.chroma_collection_name,
+                    "retrieved_sources": agent.last_retrieved_sources,
+                },
                 "interaction_id": interaction_id or None,
                 "chroma_recorded": bool(interaction_id),
                 "chroma_record_url": f"/api/chroma/interactions/{interaction_id}" if interaction_id else None,

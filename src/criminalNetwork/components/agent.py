@@ -48,6 +48,7 @@ class CriminalNetworkAgent:
         )
         self.last_answer_mode = "llm"
         self.last_interaction_id = None
+        self.last_retrieved_sources = []
         use_env_proxy = os.getenv("OPENAI_USE_ENV_PROXY", "false").lower() == "true"
         self.http_client = httpx.Client(timeout=httpx.Timeout(45.0, connect=15.0), trust_env=use_env_proxy)
         self.llm = ChatOpenAI(
@@ -120,6 +121,16 @@ class CriminalNetworkAgent:
             )
             documents = result.get("documents", [[]])[0]
             metadatas = result.get("metadatas", [[]])[0]
+            ids = result.get("ids", [[]])[0]
+            self.last_retrieved_sources = [
+                {
+                    "chunk_id": chunk_id,
+                    "source_file": metadata.get("source_file", "unknown"),
+                    "source_path": metadata.get("source_path", "unknown"),
+                    "chunk_index": metadata.get("chunk_index"),
+                }
+                for chunk_id, metadata in zip(ids, metadatas)
+            ]
             context = "\n\n".join(
                 f"[Source: {metadata.get('source_file', 'unknown')}]\n{document}"
                 for document, metadata in zip(documents, metadatas)
@@ -131,6 +142,8 @@ class CriminalNetworkAgent:
     def get_top_suspects(self, n: int = 5) -> pd.DataFrame:
         """graph_analytics ke output se top-N influential entities deta hai."""
         try:
+            if self.development_mode:
+                return pd.DataFrame()
             if not self.config.top_suspects_file.exists():
                 logger.info("Analytics output is not available yet; continuing without top-suspect context")
                 return pd.DataFrame()
@@ -215,6 +228,10 @@ Answer:"""
             logger.info(f"Agent received query: {user_query}")
 
             rag_context = self.retrieve_context(user_query)
+            if self.development_mode and not rag_context:
+                raise ValueError(
+                    "No Chroma evidence is indexed for development mode. Upload and process a case first."
+                )
 
             graph_context = ""
             if self.development_mode and (entity_focus or case_id):
