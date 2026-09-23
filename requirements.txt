@@ -11,7 +11,7 @@ pandas
 numpy
 pytesseract
 pillow
-
+langchain-huggingface
 spacy
 transformers
 torch
